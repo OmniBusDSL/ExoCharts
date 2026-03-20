@@ -19,3 +19,5 @@ venv/
 vendor/
 CMakeLists.txt
 Makefile
+PARALLEL_STREAMING_ARCHITECTURE.md
+READY_FOR_PRODUCTION.md
