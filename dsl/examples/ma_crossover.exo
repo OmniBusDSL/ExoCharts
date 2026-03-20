@@ -1,0 +1,28 @@
+// Moving Average Crossover Strategy
+// Buy when SMA20 > SMA50, Sell when SMA20 < SMA50
+
+MARKET "ETH-USD" {
+    WATCH [coinbase, kraken]
+
+    // Buy signal: price rising
+    WHEN price > 2500 AND volume > 500 {
+        BUY
+        LOG "Buy signal generated"
+        NOTIFY "traders"
+    }
+
+    // Sell signal: price falling
+    WHEN price < 2000 {
+        SELL
+        LOG "Sell signal generated"
+        NOTIFY "traders"
+    }
+
+    // 5-minute aggregation
+    AGGREGATE 5m {
+        CALCULATE sma(20)
+        CALCULATE sma(50)
+        CALCULATE rsi(14)
+        STORE "market_data"
+    }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "exogridchart",
+  "version": "1.0.0",
+  "description": "Real-time cryptocurrency market profile SDK - Stream live data from Coinbase, Kraken, LCX",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "test": "node index.js",
+    "example:js": "node example.js",
+    "example:ts": "ts-node example.ts"
+  },
+  "keywords": [
+    "cryptocurrency",
+    "market-profile",
+    "market-data",
+    "real-time",
+    "trading",
+    "coinbase",
+    "kraken",
+    "lcx",
+    "websocket",
+    "crypto",
+    "bitcoin",
+    "ethereum"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SAVACAZAN/ExoGridChart"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "ts-node": "^10.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
+

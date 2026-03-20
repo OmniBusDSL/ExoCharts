@@ -1,0 +1,24 @@
+// Basic ExoGridChart DSL Example
+// Simple price monitoring strategy
+
+MARKET "BTC-USD" {
+    WATCH [coinbase, kraken, lcx]
+
+    // Alert when price spikes
+    WHEN price > 50000 AND volume > 1000 {
+        ALERT "Price spike detected!"
+        LOG "BTC price exceeded $50,000"
+    }
+
+    // Alert when price drops
+    WHEN price < 45000 {
+        ALERT "Price dip detected"
+        LOG "BTC price below $45,000"
+    }
+
+    // Aggregate 1-minute data
+    AGGREGATE 1m {
+        SHOW ohlcv
+        SHOW volume
+    }
+}

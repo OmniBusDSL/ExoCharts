@@ -49,4 +49,9 @@ pub fn build(b: *std.Build) void {
     const build_all = b.step("build-all", "Build all executables");
     build_all.dependOn(&exo_ws_test.step);
     build_all.dependOn(&exo_server.step);
+
+    // Note: SDK files (Zig, C headers, JavaScript) are provided in sdk/ directory
+    // Users can import sdk/zig/exogrid.zig in their projects
+    // C headers in sdk/c/ are ready to use with the compiled library
+    // JavaScript SDK in sdk/js/ can be published to npm
 }
