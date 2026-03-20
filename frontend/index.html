@@ -1,0 +1,1585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ExoGridChart - Market Profile Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background: #0b0e11;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 12px 16px;
+            background: #151a1f;
+            border-bottom: 1px solid #1f2937;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-title {
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+
+        .status-connected {
+            background: rgba(14, 203, 129, 0.1);
+            color: #0ecb81;
+            border: 1px solid #0ecb81;
+        }
+
+        .status-disconnected {
+            background: rgba(246, 70, 93, 0.1);
+            color: #f6465d;
+            border: 1px solid #f6465d;
+        }
+
+        .exchange-badges {
+            display: flex;
+            gap: 6px;
+        }
+
+        .exchange-badge {
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+
+        .exchange-badge.active {
+            opacity: 1;
+        }
+
+        .exchange-coinbase { background: rgba(14, 203, 129, 0.15); color: #0ecb81; }
+        .exchange-kraken { background: rgba(100, 150, 200, 0.15); color: #6496c8; }
+        .exchange-lcx { background: rgba(200, 100, 200, 0.15); color: #c864c8; }
+
+        .container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .chart-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            padding: 12px;
+            background: #0b0e11;
+        }
+
+        #canvas {
+            flex: 1;
+            background: #0f1217;
+            border: 1px solid #1f2937;
+            border-radius: 4px;
+            image-rendering: pixelated;
+        }
+
+        .axes {
+            position: relative;
+            display: flex;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .x-axis {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #6b7280;
+            padding-left: 12px;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #151a1f;
+            border-left: 1px solid #1f2937;
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .ticker-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .ticker-button {
+            flex: 1;
+            min-width: 60px;
+            padding: 8px 12px;
+            border: 1px solid #374151;
+            border-radius: 4px;
+            background: #1f2937;
+            color: #9ca3af;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .ticker-button:hover {
+            border-color: #4b5563;
+            color: #d1d5db;
+        }
+
+        .ticker-button.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            color: #ffffff;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .timeframe-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .timeframe-button {
+            flex: 1;
+            min-width: 50px;
+            padding: 6px 10px;
+            border: 1px solid #374151;
+            border-radius: 3px;
+            background: #1f2937;
+            color: #9ca3af;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .timeframe-button:hover {
+            border-color: #4b5563;
+            color: #d1d5db;
+        }
+
+        .timeframe-button.active {
+            background: #667eea;
+            border-color: #667eea;
+            color: #ffffff;
+        }
+
+        .exchange-breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .exchange-row {
+            padding: 8px;
+            border: 1px solid #1f2937;
+            border-radius: 3px;
+            background: #0f1217;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .exchange-row:hover {
+            border-color: #374151;
+            background: #151a1f;
+        }
+
+        .exchange-name {
+            font-size: 10px;
+            font-weight: 600;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .exchange-ticker {
+            font-size: 9px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .exchange-price {
+            font-size: 11px;
+            font-weight: 600;
+            color: #0ecb81;
+        }
+
+        .exchange-volume {
+            font-size: 9px;
+            color: #6b7280;
+        }
+
+        .hover-tooltip {
+            position: fixed;
+            background: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 4px;
+            padding: 8px;
+            pointer-events: none;
+            z-index: 1000;
+            font-size: 10px;
+            color: #e0e0e0;
+            display: none;
+            white-space: nowrap;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .hover-tooltip.visible {
+            display: block;
+        }
+
+        .analysis-panel {
+            background: #0f1217;
+            border: 1px solid #1f2937;
+            border-radius: 4px;
+            padding: 12px;
+            font-size: 10px;
+        }
+
+        .analysis-header {
+            font-weight: 600;
+            color: #9ca3af;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .analysis-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            color: #9ca3af;
+        }
+
+        .analysis-value {
+            color: #0ecb81;
+            font-weight: 600;
+        }
+
+        .panel {
+            border: 1px solid #1f2937;
+            border-radius: 4px;
+            padding: 12px;
+            background: #0f1217;
+        }
+
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #9ca3af;
+            letter-spacing: 0.3px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-bottom: 6px;
+            padding: 4px 0;
+        }
+
+        .stat-label {
+            color: #6b7280;
+        }
+
+        .stat-value {
+            color: #0ecb81;
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
+        }
+
+        .poc-section .stat-value {
+            color: #fbbf24;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        button {
+            padding: 8px 12px;
+            background: #1f2937;
+            border: 1px solid #374151;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        button:hover {
+            background: #374151;
+            border-color: #4b5563;
+        }
+
+        .chart-label {
+            font-size: 10px;
+            color: #6b7280;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            align-self: center;
+            margin-right: 4px;
+        }
+
+        .scroll-container {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scroll-container::-webkit-scrollbar-track {
+            background: #0f1217;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 3px;
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+
+        /* Order Book Styles (Option 1) - Per Exchange */
+        .orderbook-per-exchange {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .ob-exchange {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 6px;
+            border-radius: 3px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .ob-exchange.exchange-cb {
+            border: 1px solid rgba(14, 203, 129, 0.3);
+        }
+
+        .ob-exchange.exchange-kraken {
+            border: 1px solid rgba(100, 150, 200, 0.3);
+        }
+
+        .ob-exchange.exchange-lcx {
+            border: 1px solid rgba(200, 100, 200, 0.3);
+        }
+
+        .ob-ex-title {
+            font-size: 9px;
+            font-weight: 600;
+            padding: 2px 4px;
+            border-bottom: 1px solid #1f2937;
+        }
+
+        .ob-exchange.exchange-cb .ob-ex-title {
+            color: #0ecb81;
+            border-bottom-color: #0ecb81;
+        }
+
+        .ob-exchange.exchange-kraken .ob-ex-title {
+            color: #6496c8;
+            border-bottom-color: #6496c8;
+        }
+
+        .ob-exchange.exchange-lcx .ob-ex-title {
+            color: #c864c8;
+            border-bottom-color: #c864c8;
+        }
+
+        .orderbook-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            font-size: 9px;
+        }
+
+        .orderbook-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .ob-header {
+            font-weight: 600;
+            color: #9ca3af;
+            padding: 2px 4px;
+            border-bottom: 1px solid #1f2937;
+            text-align: center;
+            font-size: 8px;
+        }
+
+        .ob-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 3px 4px;
+            background: #0a0d10;
+            border-radius: 2px;
+        }
+
+        .ob-px {
+            font-weight: 600;
+            text-align: center;
+            font-size: 9px;
+        }
+
+        .ob-exchange.exchange-cb .ob-px {
+            color: #0ecb81;
+        }
+
+        .ob-exchange.exchange-kraken .ob-px {
+            color: #6496c8;
+        }
+
+        .ob-exchange.exchange-lcx .ob-px {
+            color: #c864c8;
+        }
+
+        .ob-size {
+            color: #6b7280;
+            text-align: right;
+            font-size: 8px;
+        }
+
+        /* Recent Trades Styles (Option 5) - 3 Column Layout */
+        .trades-columns-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            font-size: 9px;
+        }
+
+        .trades-column {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #0a0d10;
+            border: 1px solid #1f2937;
+        }
+
+        .trades-col-header {
+            padding: 4px 6px;
+            font-weight: 600;
+            font-size: 10px;
+            text-align: center;
+            border-bottom: 1px solid #1f2937;
+        }
+
+        .trades-column.exchange-cb .trades-col-header {
+            background: rgba(14, 203, 129, 0.25);
+            color: #0ecb81;
+            border-bottom-color: #0ecb81;
+        }
+
+        .trades-column.exchange-kraken .trades-col-header {
+            background: rgba(100, 150, 200, 0.25);
+            color: #6496c8;
+            border-bottom-color: #6496c8;
+        }
+
+        .trades-column.exchange-lcx .trades-col-header {
+            background: rgba(200, 100, 200, 0.25);
+            color: #c864c8;
+            border-bottom-color: #c864c8;
+        }
+
+        .trades-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            max-height: 180px;
+            overflow-y: auto;
+            padding: 4px;
+        }
+
+        .trades-list::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .trades-list::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 2px;
+        }
+
+        .trade-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 3px 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 2px;
+            border-left: 2px solid;
+            font-size: 8px;
+        }
+
+        .trades-column.exchange-cb .trade-row {
+            border-left-color: #0ecb81;
+        }
+
+        .trades-column.exchange-kraken .trade-row {
+            border-left-color: #6496c8;
+        }
+
+        .trades-column.exchange-lcx .trade-row {
+            border-left-color: #c864c8;
+        }
+
+        .tr-time {
+            color: #fbbf24;
+            font-size: 8px;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.3px;
+        }
+
+        .tr-px {
+            font-weight: 600;
+        }
+
+        .trades-column.exchange-cb .tr-px {
+            color: #0ecb81;
+        }
+
+        .trades-column.exchange-kraken .tr-px {
+            color: #6496c8;
+        }
+
+        .trades-column.exchange-lcx .tr-px {
+            color: #c864c8;
+        }
+
+        .tr-vol {
+            color: #60a5fa;
+            font-size: 8px;
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Price Alerts Styles (Option 3) */
+        .alert-input-row {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        #alert-price {
+            flex: 1;
+            padding: 4px 6px;
+            background: #0a0d10;
+            border: 1px solid #1f2937;
+            color: #e0e0e0;
+            border-radius: 3px;
+            font-size: 10px;
+            font-family: monospace;
+        }
+
+        #alert-price:focus {
+            outline: none;
+            border-color: #0ecb81;
+        }
+
+        #add-alert-btn {
+            padding: 4px 8px;
+            flex-shrink: 0;
+        }
+
+        .alerts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 100px;
+            overflow-y: auto;
+            font-size: 9px;
+        }
+
+        .alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 6px;
+            background: #0a0d10;
+            border-left: 2px solid #0ecb81;
+            border-radius: 2px;
+        }
+
+        .alert-item.triggered {
+            border-left-color: #f87171;
+            background: #7f1d1d;
+        }
+
+        .alert-remove {
+            cursor: pointer;
+            color: #ef4444;
+            font-weight: 600;
+            padding: 0 4px;
+            border-radius: 2px;
+        }
+
+        .alert-remove:hover {
+            background: #991b1b;
+        }
+
+        /* Value Area Highlighting (Option 4) - Canvas overlay */
+        #value-area-tooltip {
+            position: fixed;
+            background: rgba(15, 18, 23, 0.95);
+            border: 1px solid #0ecb81;
+            padding: 4px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            color: #0ecb81;
+            pointer-events: none;
+            z-index: 10001;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid #1f2937;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <div class="header-title">🔷 ExoGridChart</div>
+            <div id="status" class="status-badge status-disconnected">DISCONNECTED</div>
+        </div>
+        <div class="exchange-badges">
+            <div id="badge-cb" class="exchange-badge exchange-coinbase">CB</div>
+            <div id="badge-kraken" class="exchange-badge exchange-kraken">KRK</div>
+            <div id="badge-lcx" class="exchange-badge exchange-lcx">LCX</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="chart-area">
+            <div style="display: flex; align-items: stretch; flex: 1; min-height: 0;">
+                <span class="chart-label">PRICE (USD)</span>
+                <canvas id="canvas" width="800" height="400"></canvas>
+            </div>
+            <div class="axes">
+                <div style="width: 12px;"></div>
+                <div class="x-axis">
+                    <span>0s</span>
+                    <span>15s</span>
+                    <span>30s</span>
+                    <span>45s</span>
+                    <span>60s</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="scroll-container">
+                <!-- Ticker Selector -->
+                <div class="panel">
+                    <div class="panel-title">Select Ticker</div>
+                    <div class="ticker-selector">
+                        <button class="ticker-button active" data-ticker="BTCUSDC">BTC</button>
+                        <button class="ticker-button" data-ticker="ETHUSDC">ETH</button>
+                        <button class="ticker-button" data-ticker="XRPUSDC">XRP</button>
+                        <button class="ticker-button" data-ticker="LTCUSDC">LTC</button>
+                    </div>
+                </div>
+
+                <!-- Timeframe Selector -->
+                <div class="panel">
+                    <div class="panel-title">Timeframe</div>
+                    <div class="timeframe-selector">
+                        <button class="timeframe-button active" data-timeframe="1s">1s</button>
+                        <button class="timeframe-button" data-timeframe="5s">5s</button>
+                        <button class="timeframe-button" data-timeframe="1m">1m</button>
+                        <button class="timeframe-button" data-timeframe="5m">5m</button>
+                    </div>
+                </div>
+
+                <!-- Per-Exchange Breakdown -->
+                <div class="panel">
+                    <div class="panel-title">Exchange Data</div>
+                    <div class="exchange-breakdown">
+                        <div class="exchange-row" id="exchange-cb">
+                            <div class="exchange-name">Coinbase</div>
+                            <div class="exchange-ticker" id="cb-ticker">BTC-USDC</div>
+                            <div class="exchange-price" id="cb-price">$0.00</div>
+                            <div class="exchange-volume" id="cb-volume">Vol: 0</div>
+                        </div>
+                        <div class="exchange-row" id="exchange-kraken">
+                            <div class="exchange-name">Kraken</div>
+                            <div class="exchange-ticker" id="kraken-ticker">XBT/USDC</div>
+                            <div class="exchange-price" id="kraken-price">$0.00</div>
+                            <div class="exchange-volume" id="kraken-volume">Vol: 0</div>
+                        </div>
+                        <div class="exchange-row" id="exchange-lcx">
+                            <div class="exchange-name">LCX</div>
+                            <div class="exchange-ticker" id="lcx-ticker">BTC/USDC</div>
+                            <div class="exchange-price" id="lcx-price">$0.00</div>
+                            <div class="exchange-volume" id="lcx-volume">Vol: 0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Market Profile Stats -->
+                <div class="panel">
+                    <div class="panel-title">Market Profile</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Ticks</span>
+                        <span class="stat-value" id="ticks">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Volume</span>
+                        <span class="stat-value" id="volume">0.0</span>
+                    </div>
+                </div>
+
+                <!-- Point of Control -->
+                <div class="panel poc-section">
+                    <div class="panel-title">Point of Control</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Price</span>
+                        <span class="stat-value" id="poc-price">$0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Volume</span>
+                        <span class="stat-value" id="poc-volume">0</span>
+                    </div>
+                </div>
+
+                <!-- Price Range -->
+                <div class="panel">
+                    <div class="panel-title">Price Range</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Min</span>
+                        <span class="stat-value" id="price-min">$40,000</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Max</span>
+                        <span class="stat-value" id="price-max">$70,000</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Range</span>
+                        <span class="stat-value" id="price-range">$30,000</span>
+                    </div>
+                </div>
+
+                <!-- Real-time Statistics Panel (Option 2) -->
+                <div class="panel">
+                    <div class="panel-title">Advanced Stats</div>
+                    <div class="stat-row">
+                        <span class="stat-label">VWAP</span>
+                        <span class="stat-value" id="vwap">$0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Spread</span>
+                        <span class="stat-value" id="spread">0.00%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Buy/Sell</span>
+                        <span class="stat-value" id="buy-sell-ratio">0.00%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">High</span>
+                        <span class="stat-value" id="session-high">$0.00</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Low</span>
+                        <span class="stat-value" id="session-low">$0.00</span>
+                    </div>
+                </div>
+
+                <!-- Order Book Panel (Option 1) -->
+                <div class="panel">
+                    <div class="panel-title">Order Book per Exchange</div>
+                    <div class="orderbook-per-exchange">
+                        <div class="ob-exchange exchange-cb">
+                            <div class="ob-ex-title">Coinbase</div>
+                            <div class="orderbook-grid">
+                                <div class="orderbook-col">
+                                    <div class="ob-header">Bid</div>
+                                    <div class="ob-row" id="ob-cb-bid"><span class="ob-px">-</span></div>
+                                </div>
+                                <div class="orderbook-col">
+                                    <div class="ob-header">Ask</div>
+                                    <div class="ob-row" id="ob-cb-ask"><span class="ob-px">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ob-exchange exchange-kraken">
+                            <div class="ob-ex-title">Kraken</div>
+                            <div class="orderbook-grid">
+                                <div class="orderbook-col">
+                                    <div class="ob-header">Bid</div>
+                                    <div class="ob-row" id="ob-kr-bid"><span class="ob-px">-</span></div>
+                                </div>
+                                <div class="orderbook-col">
+                                    <div class="ob-header">Ask</div>
+                                    <div class="ob-row" id="ob-kr-ask"><span class="ob-px">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ob-exchange exchange-lcx">
+                            <div class="ob-ex-title">LCX</div>
+                            <div class="orderbook-grid">
+                                <div class="orderbook-col">
+                                    <div class="ob-header">Bid</div>
+                                    <div class="ob-row" id="ob-lcx-bid"><span class="ob-px">-</span></div>
+                                </div>
+                                <div class="orderbook-col">
+                                    <div class="ob-header">Ask</div>
+                                    <div class="ob-row" id="ob-lcx-ask"><span class="ob-px">-</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Trades Panel (Option 5) -->
+                <div class="panel">
+                    <div class="panel-title">Recent Trades per Exchange</div>
+                    <div class="trades-columns-container">
+                        <div class="trades-column exchange-cb">
+                            <div class="trades-col-header">Coinbase</div>
+                            <div class="trades-list" id="trades-cb"></div>
+                        </div>
+                        <div class="trades-column exchange-kraken">
+                            <div class="trades-col-header">Kraken</div>
+                            <div class="trades-list" id="trades-kraken"></div>
+                        </div>
+                        <div class="trades-column exchange-lcx">
+                            <div class="trades-col-header">LCX</div>
+                            <div class="trades-list" id="trades-lcx"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Price Alerts Panel (Option 3) -->
+                <div class="panel">
+                    <div class="panel-title">Price Alerts</div>
+                    <div class="alert-input-row">
+                        <input type="number" id="alert-price" placeholder="Price target" min="0" max="999999" step="0.01">
+                        <button id="add-alert-btn">Add</button>
+                    </div>
+                    <div class="alerts-list" id="alerts-list">
+                        <div class="alert-item">No alerts set</div>
+                    </div>
+                </div>
+
+                <!-- Connection Info -->
+                <div class="panel">
+                    <div class="panel-title">Server Info</div>
+                    <div class="stat-row">
+                        <span class="stat-label">Host</span>
+                        <span class="stat-value" style="font-size: 9px;" id="server-host">localhost</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">Port</span>
+                        <span class="stat-value" id="server-port">8080</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="controls">
+                <button id="reset-btn">Reset Matrix</button>
+                <button id="export-btn">Export Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        let currentMatrix = null;
+        let isConnected = false;
+        let selectedTicker = 'BTCUSDC';  // Current selected trading pair
+        let selectedTimeframe = '1s';    // Current selected timeframe
+
+        // Canvas rendering configuration
+        let CELL_WIDTH = 12;  // pixels per time bucket (dynamically updated based on timeframe)
+        const CELL_HEIGHT = 2;  // pixels per price level
+        const MAX_VISIBLE_ROWS = 300;  // rows around POC to display
+
+        // Ticker selector setup
+        function setupTickerSelector() {
+            const buttons = document.querySelectorAll('.ticker-button');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    console.log('════════════════════════════════════');
+                    console.log('[Ticker Selector] CLICKED');
+                    // Remove active class from all buttons
+                    buttons.forEach(b => b.classList.remove('active'));
+                    // Add active class to clicked button
+                    btn.classList.add('active');
+                    // Update selected ticker
+                    selectedTicker = btn.dataset.ticker;
+                    console.log(`[Ticker Selector] NEW TICKER: ${selectedTicker}`);
+                    console.log('[Ticker Selector] Fetching data from API...');
+                    console.log(`[Ticker Selector] Request: /api/matrix?ticker=${selectedTicker}`);
+                    // Fetch new data for selected ticker
+                    pollMatrix();
+                    console.log('════════════════════════════════════');
+                });
+            });
+        }
+
+        // Timeframe selector setup
+        function setupTimeframeSelector() {
+            const buttons = document.querySelectorAll('.timeframe-button');
+            buttons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    buttons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedTimeframe = btn.dataset.timeframe;
+                    console.log(`[Timeframe] Selected: ${selectedTimeframe}`);
+                    pollMatrix();
+                });
+            });
+        }
+
+        // Canvas hover tooltip
+        const hoverTooltip = document.createElement('div');
+        hoverTooltip.className = 'hover-tooltip';
+        document.body.appendChild(hoverTooltip);
+
+        // Canvas mouse handlers for interactive details
+        function setupCanvasInteraction() {
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const col = Math.floor(x / CELL_WIDTH);
+                const displayRow = Math.floor(y / CELL_HEIGHT);
+
+                if (currentMatrix && col >= 0 && displayRow >= 0) {
+                    const pocRow = Math.floor((currentMatrix.poc_price - currentMatrix.price_min) / currentMatrix.price_step);
+                    const rowOffset = Math.max(0, Math.min(pocRow - 150, currentMatrix.price_rows - 300));
+                    const row = rowOffset + displayRow;
+
+                    if (row >= 0 && row < currentMatrix.price_rows && col < currentMatrix.time_buckets) {
+                        const idx = row * currentMatrix.time_buckets + col;
+                        const volume = currentMatrix.data[idx] || 0;
+                        const delta = (currentMatrix.delta && idx < currentMatrix.delta.length) ? currentMatrix.delta[idx] : 0;
+                        const price = currentMatrix.price_min + row * currentMatrix.price_step;
+
+                        hoverTooltip.innerHTML = `
+                            <div>Price: $${price.toFixed(2)}</div>
+                            <div>Volume: ${(volume / 10000).toFixed(2)}</div>
+                            <div>Delta: ${delta > 0 ? '+' : ''}${delta}</div>
+                        `;
+                        hoverTooltip.classList.add('visible');
+                        hoverTooltip.style.left = (e.clientX + 10) + 'px';
+                        hoverTooltip.style.top = (e.clientY + 10) + 'px';
+                    }
+                }
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                hoverTooltip.classList.remove('visible');
+            });
+
+            canvas.addEventListener('click', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const col = Math.floor(x / CELL_WIDTH);
+                const displayRow = Math.floor(y / CELL_HEIGHT);
+
+                console.log(`[Canvas] Clicked at col=${col}, row=${displayRow}`);
+            });
+        }
+
+        // Update exchange data display with REAL per-exchange metrics
+        function updateExchangeData(data) {
+            console.log('════════════════════════════════════');
+            console.log('[ExchangeData] ✓ REAL DATA from backend for ticker:', selectedTicker);
+
+            if (data.exchanges) {
+                // Coinbase
+                const cb = data.exchanges.coinbase;
+                console.log(`[Coinbase] Ticks: ${cb.ticks} | Volume: ${(cb.volume / 10000).toFixed(2)} | Price: $${cb.price.toFixed(2)}`);
+                document.getElementById('cb-price').textContent = `$${cb.price.toFixed(2)}`;
+                document.getElementById('cb-volume').textContent = `Vol: ${(cb.volume / 10000).toFixed(2)} (${cb.ticks} ticks)`;
+
+                // Kraken
+                const kraken = data.exchanges.kraken;
+                console.log(`[Kraken]   Ticks: ${kraken.ticks} | Volume: ${(kraken.volume / 10000).toFixed(2)} | Price: $${kraken.price.toFixed(2)}`);
+                document.getElementById('kraken-price').textContent = `$${kraken.price.toFixed(2)}`;
+                document.getElementById('kraken-volume').textContent = `Vol: ${(kraken.volume / 10000).toFixed(2)} (${kraken.ticks} ticks)`;
+
+                // LCX
+                const lcx = data.exchanges.lcx;
+                console.log(`[LCX]      Ticks: ${lcx.ticks} | Volume: ${(lcx.volume / 10000).toFixed(2)} | Price: $${lcx.price.toFixed(2)}`);
+                document.getElementById('lcx-price').textContent = `$${lcx.price.toFixed(2)}`;
+                document.getElementById('lcx-volume').textContent = `Vol: ${(lcx.volume / 10000).toFixed(2)} (${lcx.ticks} ticks)`;
+
+                // Show price spread
+                const spread = Math.abs(cb.price - kraken.price);
+                console.log(`[Spread] Coinbase vs Kraken: $${spread.toFixed(2)} (${((spread / cb.price) * 100).toFixed(3)}%)`);
+            } else {
+                console.warn('[ExchangeData] ⚠️ No per-exchange data in API response');
+            }
+
+            console.log('════════════════════════════════════');
+        }
+
+        // Initialize canvas
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = Math.floor(container.clientWidth / CELL_WIDTH) * CELL_WIDTH;
+            canvas.height = Math.floor(container.clientHeight / CELL_HEIGHT) * CELL_HEIGHT;
+            console.log(`[Canvas] Resized to ${canvas.width}×${canvas.height}`);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Update UI stats
+        function updateStats(data) {
+            document.getElementById('ticks').textContent = data.ticks_processed.toLocaleString();
+            document.getElementById('volume').textContent = (data.total_volume / 10000).toFixed(2);
+            document.getElementById('poc-price').textContent = `$${data.poc_price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('poc-volume').textContent = data.poc_volume.toLocaleString();
+            document.getElementById('price-min').textContent = `$${data.price_min.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+            document.getElementById('price-max').textContent = `$${data.price_max.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+            document.getElementById('price-range').textContent = `$${(data.price_max - data.price_min).toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+            updateExchangeData(data);
+        }
+
+        // Render market matrix to canvas
+        function renderMatrix(data) {
+            currentMatrix = data;
+
+            const timeSteps = data.time_buckets;
+            const priceRows = data.price_rows;
+            const pocRow = Math.floor((data.poc_price - data.price_min) / data.price_step);
+
+            // Calculate responsive CELL_WIDTH based on time buckets
+            CELL_WIDTH = Math.floor(canvas.width / timeSteps);
+
+            // Calculate visible row range (±150 rows from POC)
+            const rowOffset = Math.max(0, Math.min(pocRow - MAX_VISIBLE_ROWS / 2, priceRows - MAX_VISIBLE_ROWS));
+            const visibleRows = Math.min(MAX_VISIBLE_ROWS, priceRows);
+
+            // Find max volume and delta in viewport for color normalization
+            let maxVolume = 0;
+            let maxDelta = 0;
+            for (let row = rowOffset; row < rowOffset + visibleRows; row++) {
+                for (let col = 0; col < timeSteps; col++) {
+                    const idx = row * timeSteps + col;
+                    if (idx < data.data.length) {
+                        maxVolume = Math.max(maxVolume, data.data[idx]);
+                        if (data.delta && idx < data.delta.length) {
+                            maxDelta = Math.max(maxDelta, Math.abs(data.delta[idx]));
+                        }
+                    }
+                }
+            }
+            if (maxVolume === 0) maxVolume = 1;
+            if (maxDelta === 0) maxDelta = 1;
+
+            // Clear canvas
+            ctx.fillStyle = '#0f1217';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw heatmap cells
+            const colsToDraw = Math.min(timeSteps, Math.floor(canvas.width / CELL_WIDTH));
+            const rowsToDisplay = Math.min(visibleRows, Math.floor(canvas.height / CELL_HEIGHT));
+
+            for (let col = 0; col < colsToDraw; col++) {
+                for (let displayRow = 0; displayRow < rowsToDisplay; displayRow++) {
+                    const row = rowOffset + displayRow;
+                    const idx = row * timeSteps + col;
+
+                    if (idx >= data.data.length) continue;
+
+                    const volume = data.data[idx];
+                    const delta = (data.delta && idx < data.delta.length) ? data.delta[idx] : 0;
+
+                    // Color mapping: red (sell) ← neutral → green (buy)
+                    if (volume === 0) {
+                        ctx.fillStyle = '#0f1217';  // dark background
+                    } else {
+                        let hue, lightness;
+                        if (delta >= 0) {
+                            // Buy dominated: green gradient
+                            hue = 120;
+                            const normalized = Math.min(1, delta / maxDelta);
+                            lightness = 15 + (normalized * 45);  // 15% - 60%
+                        } else {
+                            // Sell dominated: red gradient
+                            hue = 0;
+                            const normalized = Math.min(1, Math.abs(delta) / maxDelta);
+                            lightness = 15 + (normalized * 45);  // 15% - 60%
+                        }
+                        const saturation = 100;
+                        ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                    }
+
+                    ctx.fillRect(
+                        col * CELL_WIDTH,
+                        displayRow * CELL_HEIGHT,
+                        CELL_WIDTH,
+                        CELL_HEIGHT
+                    );
+                }
+            }
+
+            // Draw POC line (horizontal yellow line)
+            const pocDisplayRow = pocRow - rowOffset;
+            if (pocDisplayRow >= 0 && pocDisplayRow < rowsToDisplay) {
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, pocDisplayRow * CELL_HEIGHT);
+                ctx.lineTo(canvas.width, pocDisplayRow * CELL_HEIGHT);
+                ctx.stroke();
+            }
+
+            // Draw Value Area Highlighting (Option 4)
+            valueArea = calculateValueArea(data, timeSteps, data.poc_price, data.price_min, data.price_step);
+            const vaHighRow = Math.floor((valueArea.high - data.price_min) / data.price_step) - rowOffset;
+            const vaLowRow = Math.floor((valueArea.low - data.price_min) / data.price_step) - rowOffset;
+            if (vaHighRow >= 0 || vaLowRow < rowsToDisplay) {
+                ctx.fillStyle = 'rgba(14, 203, 129, 0.08)';  // Subtle green overlay
+                ctx.fillRect(
+                    0,
+                    Math.max(0, vaLowRow * CELL_HEIGHT),
+                    canvas.width,
+                    Math.max(0, (vaHighRow - vaLowRow) * CELL_HEIGHT)
+                );
+            }
+
+            updateStats(data);
+        }
+
+        // Poll market data via REST API
+        function pollMatrix() {
+            const url = `/api/matrix?ticker=${selectedTicker}&timeframe=${selectedTimeframe}`;
+            console.log(`[API] Fetching: ${url}`);
+
+            fetch(url)
+                .then(response => {
+                    console.log(`[API] Response status: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    setStatus(true);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`[API] Data received for ticker: ${selectedTicker}`);
+                    console.log(`[API] Ticks: ${data.ticks_processed} | Volume: ${data.total_volume} | POC: $${data.poc_price}`);
+
+                    // Convert flat data array to typed array if needed
+                    if (Array.isArray(data.data)) {
+                        data.data = new Uint32Array(data.data);
+                        console.log(`[API] Data array converted: ${data.data.length} cells`);
+                    }
+                    if (Array.isArray(data.delta)) {
+                        data.delta = new Int32Array(data.delta);
+                        console.log(`[API] Delta array converted: ${data.delta.length} cells`);
+                    }
+
+                    renderMatrix(data);
+                    updateExchangeBadges(data);
+                    // New features integration
+                    updateAdvancedStats(data);
+                    updateOrderBook(data);
+                    detectTrades(data);  // Option 5: Track recent trades
+                    if (data.exchanges && data.exchanges.coinbase) {
+                        checkAlerts(data.exchanges.coinbase.price);
+                    }
+                })
+                .catch(error => {
+                    console.error('[API] ❌ ERROR:', error.message);
+                    setStatus(false);
+                });
+        }
+
+        // Set connection status
+        function setStatus(connected) {
+            isConnected = connected;
+            const badge = document.getElementById('status');
+            if (connected) {
+                badge.className = 'status-badge status-connected';
+                badge.textContent = 'CONNECTED';
+            } else {
+                badge.className = 'status-badge status-disconnected';
+                badge.textContent = 'DISCONNECTED';
+            }
+        }
+
+        // Update exchange activity badges (placeholder - would need server to track)
+        function updateExchangeBadges(data) {
+            // This would be set by the server based on which exchanges have recent ticks
+            // For now, show all as active if we're receiving data
+            document.getElementById('badge-cb').classList.add('active');
+            document.getElementById('badge-kraken').classList.add('active');
+            document.getElementById('badge-lcx').classList.add('active');
+        }
+
+        // Button handlers
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            if (currentMatrix) {
+                console.log('[ExoGrid] Reset: clearing matrix (server-side reset needed)');
+            }
+        });
+
+        document.getElementById('export-btn').addEventListener('click', () => {
+            if (currentMatrix) {
+                const json = JSON.stringify(currentMatrix, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `market-profile-${Date.now()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                console.log('[ExoGrid] Exported market profile data');
+            }
+        });
+
+        // ==================== NEW FEATURES ====================
+
+        // Data structures for new features
+        let recentTrades = [];  // Option 5: Track recent trades
+        let priceAlerts = [];   // Option 3: Track price alerts
+        let valueArea = null;   // Option 4: Track value area bounds
+        let lastTotalVolume = 0; // For detecting volume changes (trades)
+
+        // ========== Option 5: Recent Trades Tracking ==========
+        function addTrade(price, volume, exchange) {
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const exName = ['CB', 'KR', 'LCX'][exchange] || '??';
+            recentTrades.unshift({ price, volume, time, exchange: exName });
+            if (recentTrades.length > 20) recentTrades.pop();
+            updateTradesDisplay();
+        }
+
+        function detectTrades(data) {
+            // Detect new trades from volume changes
+            const volumeDiff = data.total_volume - lastTotalVolume;
+            lastTotalVolume = data.total_volume;
+
+            if (volumeDiff > 0 && data.exchanges) {
+                // Generate synthetic trade from volume change
+                const exchanges = ['coinbase', 'kraken', 'lcx'];
+                let totalExVol = 0;
+                exchanges.forEach((ex, idx) => {
+                    if (data.exchanges[ex]) {
+                        totalExVol += data.exchanges[ex].volume || 0;
+                    }
+                });
+
+                // Distribute volume proportionally
+                exchanges.forEach((ex, idx) => {
+                    if (data.exchanges[ex] && totalExVol > 0) {
+                        const exVol = data.exchanges[ex].volume || 0;
+                        const proportion = exVol / totalExVol;
+                        const tradeVol = volumeDiff * proportion / 10000;  // Convert from units
+                        if (tradeVol > 0.0001) {
+                            addTrade(data.exchanges[ex].price, tradeVol, idx);
+                        }
+                    }
+                });
+            }
+        }
+
+        function updateTradesDisplay() {
+            // Separate trades by exchange
+            const tradesByCB = recentTrades.filter(t => t.exchange === 'CB');
+            const tradesByKR = recentTrades.filter(t => t.exchange === 'KR');
+            const tradesByLCX = recentTrades.filter(t => t.exchange === 'LCX');
+
+            // Update each column
+            updateTradesColumn('trades-cb', tradesByCB);
+            updateTradesColumn('trades-kraken', tradesByKR);
+            updateTradesColumn('trades-lcx', tradesByLCX);
+        }
+
+        function updateTradesColumn(elementId, trades) {
+            const container = document.getElementById(elementId);
+            if (trades.length === 0) {
+                container.innerHTML = '<div class="trade-row"><span class="tr-time">--:--</span><span class="tr-px">$0</span></div>';
+                return;
+            }
+            container.innerHTML = trades.map(t =>
+                `<div class="trade-row"><span class="tr-time">${t.time}</span><span class="tr-px">$${t.price.toFixed(2)}</span><span class="tr-vol">${t.volume.toFixed(4)}</span></div>`
+            ).join('');
+        }
+
+        // ========== Option 4: Value Area Highlighting ==========
+        function calculateValueArea(data, timeSteps, pocPrice, priceMin, priceStep) {
+            let totalVolume = 0;
+            let rowVolumes = [];
+
+            // Calculate volume per row
+            for (let row = 0; row < data.price_rows; row++) {
+                let rowVol = 0;
+                for (let col = 0; col < timeSteps; col++) {
+                    rowVol += data.data[row * timeSteps + col] || 0;
+                }
+                rowVolumes.push({ row, volume: rowVol });
+                totalVolume += rowVol;
+            }
+
+            // Sort by volume descending
+            rowVolumes.sort((a, b) => b.volume - a.volume);
+
+            // Find 70% volume concentration
+            let accum = 0;
+            let vaHigh = pocPrice, vaLow = pocPrice;
+            for (let i = 0; i < rowVolumes.length && accum < totalVolume * 0.7; i++) {
+                const price = priceMin + rowVolumes[i].row * priceStep;
+                vaHigh = Math.max(vaHigh, price);
+                vaLow = Math.min(vaLow, price);
+                accum += rowVolumes[i].volume;
+            }
+
+            return { high: vaHigh, low: vaLow, pocPrice };
+        }
+
+        // ========== Option 2: Real-time Statistics ==========
+        function calculateAdvancedStats(data) {
+            const timeSteps = data.time_buckets || 60;
+            let vwapNumerator = 0, vwapDenominator = 0;
+            let buyTotal = 0, sellTotal = 0;
+            let highPrice = data.price_min, lowPrice = data.price_max;
+
+            // Calculate VWAP, high/low
+            for (let row = 0; row < data.price_rows; row++) {
+                const price = data.price_min + row * data.price_step;
+                let rowVolume = 0;
+                for (let col = 0; col < timeSteps; col++) {
+                    const idx = row * timeSteps + col;
+                    const vol = data.data[idx] || 0;
+                    rowVolume += vol;
+                    vwapNumerator += price * vol;
+                    vwapDenominator += vol;
+                    buyTotal += Math.max(0, data.delta[idx] || 0);
+                    sellTotal += Math.max(0, -(data.delta[idx] || 0));
+                }
+                if (rowVolume > 0) {
+                    highPrice = Math.max(highPrice, price);
+                    lowPrice = Math.min(lowPrice, price);
+                }
+            }
+
+            const vwap = vwapDenominator > 0 ? vwapNumerator / vwapDenominator : 0;
+            const spread = (data.exchanges) ? calculateSpread(data.exchanges) : 0;
+            const buyRatio = (buyTotal + sellTotal) > 0 ? (buyTotal / (buyTotal + sellTotal)) * 100 : 50;
+
+            return { vwap, spread, buyRatio, highPrice, lowPrice };
+        }
+
+        function calculateSpread(exchanges) {
+            if (!exchanges) return 0;
+            const prices = [];
+            if (exchanges.coinbase) prices.push(parseFloat(exchanges.coinbase.price) || 0);
+            if (exchanges.kraken) prices.push(parseFloat(exchanges.kraken.price) || 0);
+            if (exchanges.lcx) prices.push(parseFloat(exchanges.lcx.price) || 0);
+
+            if (prices.length < 2) return 0;
+            const max = Math.max(...prices);
+            const min = Math.min(...prices);
+            return min > 0 ? ((max - min) / min) * 100 : 0;
+        }
+
+        // Update stats display
+        function updateAdvancedStats(data) {
+            const stats = calculateAdvancedStats(data);
+            document.getElementById('vwap').textContent = `$${stats.vwap.toFixed(2)}`;
+            document.getElementById('spread').textContent = `${stats.spread.toFixed(3)}%`;
+            document.getElementById('buy-sell-ratio').textContent = `${stats.buyRatio.toFixed(1)}%`;
+            document.getElementById('session-high').textContent = `$${stats.highPrice.toFixed(2)}`;
+            document.getElementById('session-low').textContent = `$${stats.lowPrice.toFixed(2)}`;
+        }
+
+        // ========== Option 1: Order Book Display ==========
+        function updateOrderBook(data) {
+            if (!data.exchanges) return;
+
+            const ex = data.exchanges;
+
+            // Update Coinbase
+            if (ex.coinbase) {
+                document.getElementById('ob-cb-bid').querySelector('.ob-px').textContent = `$${ex.coinbase.price.toFixed(2)}`;
+                document.getElementById('ob-cb-ask').querySelector('.ob-px').textContent = `$${(ex.coinbase.price * 1.0005).toFixed(2)}`;  // Simulated spread
+            }
+
+            // Update Kraken
+            if (ex.kraken) {
+                document.getElementById('ob-kr-bid').querySelector('.ob-px').textContent = `$${ex.kraken.price.toFixed(2)}`;
+                document.getElementById('ob-kr-ask').querySelector('.ob-px').textContent = `$${(ex.kraken.price * 1.0005).toFixed(2)}`;
+            }
+
+            // Update LCX
+            if (ex.lcx) {
+                document.getElementById('ob-lcx-bid').querySelector('.ob-px').textContent = `$${ex.lcx.price.toFixed(2)}`;
+                document.getElementById('ob-lcx-ask').querySelector('.ob-px').textContent = `$${(ex.lcx.price * 1.0005).toFixed(2)}`;
+            }
+        }
+
+        // ========== Option 3: Price Alerts ==========
+        function setupAlerts() {
+            const addBtn = document.getElementById('add-alert-btn');
+            const priceInput = document.getElementById('alert-price');
+
+            addBtn.addEventListener('click', () => {
+                const price = parseFloat(priceInput.value);
+                if (price > 0) {
+                    const alert = { price, id: Date.now() };
+                    priceAlerts.push(alert);
+                    priceInput.value = '';
+                    saveAlerts();
+                    updateAlertsDisplay();
+                }
+            });
+
+            priceInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addBtn.click();
+            });
+
+            loadAlerts();
+            updateAlertsDisplay();
+        }
+
+        function saveAlerts() {
+            localStorage.setItem('exo-price-alerts', JSON.stringify(priceAlerts));
+        }
+
+        function loadAlerts() {
+            const saved = localStorage.getItem('exo-price-alerts');
+            priceAlerts = saved ? JSON.parse(saved) : [];
+        }
+
+        function updateAlertsDisplay() {
+            const container = document.getElementById('alerts-list');
+            if (priceAlerts.length === 0) {
+                container.innerHTML = '<div class="alert-item">No alerts set</div>';
+                return;
+            }
+            container.innerHTML = priceAlerts.map(a =>
+                `<div class="alert-item"><span>$${a.price.toFixed(2)}</span> <span class="alert-remove" data-id="${a.id}">✕</span></div>`
+            ).join('');
+
+            // Attach remove handlers
+            container.querySelectorAll('.alert-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    priceAlerts = priceAlerts.filter(a => a.id !== parseInt(btn.dataset.id));
+                    saveAlerts();
+                    updateAlertsDisplay();
+                });
+            });
+        }
+
+        function checkAlerts(currentPrice) {
+            priceAlerts.forEach(alert => {
+                if (Math.abs(currentPrice - alert.price) < 10) {  // Within $10
+                    if (Notification.permission === 'granted') {
+                        new Notification(`ExoGrid Alert: $${currentPrice.toFixed(2)}`, {
+                            body: `Price near your alert at $${alert.price.toFixed(2)}`,
+                            tag: `alert-${alert.id}`
+                        });
+                    }
+                }
+            });
+        }
+
+        // Request notification permission
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Initialize
+        console.log('[ExoGrid] Starting frontend (REST polling every 1 second)...');
+        console.log('[Ticker] Initializing ticker selector...');
+        setupTickerSelector();
+        console.log('[Timeframe] Initializing timeframe selector...');
+        setupTimeframeSelector();
+        console.log('[Canvas] Setting up interactive handlers...');
+        setupCanvasInteraction();
+        console.log('[Alerts] Initializing price alerts...');
+        setupAlerts();
+        // Initial render with empty matrix
+        renderMatrix({
+            price_min: 40000,
+            price_max: 70000,
+            price_step: 10,
+            time_buckets: 60,
+            price_rows: 3001,
+            data: new Uint32Array(3001 * 60),  // Empty matrix
+            delta: new Int32Array(3001 * 60),  // Empty delta
+            ticks_processed: 0,
+            total_volume: 0,
+            poc_price: 40000,
+            poc_volume: 0,
+            current_time_bucket: 0
+        });
+        // Start polling
+        pollMatrix();  // First poll immediately
+        setInterval(pollMatrix, 1000);  // Then every 1 second
+    </script>
+</body>
+</html>

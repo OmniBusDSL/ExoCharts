@@ -1,0 +1,21 @@
+# Build cache
+.zig-cache/
+zig-out/
+build/
+
+# OS files
+.DS_Store
+*.swp
+*.swo
+*~
+*.Zone.Identifier
+
+# Dependencies
+node_modules/
+.venv/
+venv/
+
+# Obsolete
+vendor/
+CMakeLists.txt
+Makefile
